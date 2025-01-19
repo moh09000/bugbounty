@@ -73,7 +73,7 @@ def run_paramspider():
     except subprocess.CalledProcessError:
         print("[-] Paramspider failed.")
 '''
-
+"""
 # Function to run Paramspider for a single subdomain
 def run_paramspider():
     try:
@@ -97,6 +97,7 @@ with ThreadPoolExecutor(max_workers=num_threads) as executor:
     # Create multiple workers, each reading the file and processing the subdomains
     executor.map(run_paramspider, range(num_threads))
 
+"""
 print("[+] All tasks completed.")
 
 
