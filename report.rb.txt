@@ -1,30 +1,58 @@
+require 'zlib'
 require 'digest'
 
-def predict_token(email, unix_time)
-  chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+def generate_seed(email, timestamp, method: :crc, offset: 1000)
+  case method
+  when :crc
+    Zlib.crc32(email) % offset + timestamp
+  when :md5
+    Digest::MD5.hexdigest(email)[0..7].to_i(16) % offset + timestamp
+  when :xor
+    (Zlib.crc32(email) % offset) ^ timestamp
+  when :concat
+    "#{timestamp}#{Zlib.crc32(email)}".to_i % (10**18)
+  end
+end
+
+def predict_token(email, timestamp, method: :crc, offset: 1000)
+  chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_'
   
-  # استخدام SHA1 مع أخذ أول 6 أحرف
-  email_hash = Digest::SHA1.hexdigest(email)[0..5].to_i(16) % 5000
-  
-  # دمج التوقيت والهاش مع إزاحة
-  seed = unix_time + (email_hash << 5)
-  
+  seed = generate_seed(email, timestamp, method: method, offset: offset)
   srand(seed)
+  
   (0..19).map { chars[rand(64)] }.join
 end
 
-# اختبار مع البيانات المقدمة
+# اختبار جميع التركيبات الممكنة
 requests = [
   {email: 'cw_17556241@hotmail.com', time: 1737759820, token: 'ogWyndFh6yX8jpfkKg5y'},
   {email: 'bloggeer090@gmail.com', time: 1737759820, token: 'tWLwk7aE_u9_VAuEY7GL'},
   {email: 'cw_17556241@hotmail.com', time: 1737759931, token: 'Snxs-jMXnoktHxriruhK'},
   {email: 'bloggeer090@gmail.com', time: 1737759931, token: 'k9rK-y2nLx4yMxysa_zC'},
+  {email: 'cw_17556241@hotmail.com', time: 1737760043, token: 'skj_RXpsb4E5oFrzCVzr'},
+  {email: 'bloggeer090@gmail.com', time: 1737760043, token: 'MNT5CsZhnWn8WXKMRJy5'}
 ]
 
+methods = [:crc, :md5, :xor, :concat]
+offsets = [100, 500, 1000, 10000]
+
 requests.each do |req|
-  predicted = predict_token(req[:email], req[:time])
-  status = predicted == req[:token] ? "✅" : "❌"
-  puts "#{status} Email: #{req[:email]} | Time: #{req[:time]}"
-  puts "Predicted: #{predicted}"
-  puts "Actual:    #{req[:token]}\n\n"
+  found = false
+  methods.each do |method|
+    offsets.each do |offset|
+      predicted = predict_token(req[:email], req[:time], method: method, offset: offset)
+      if predicted == req[:token]
+        puts "✅ Email: #{req[:email]} | Time: #{req[:time]} | Method: #{method} | Offset: #{offset}"
+        puts "Predicted: #{predicted}"
+        found = true
+        break
+      end
+    end
+    break if found
+  end
+  unless found
+    puts "❌ Email: #{req[:email]} | Time: #{req[:time]} | Token: #{req[:token]}"
+    puts "No matching pattern found."
+  end
+  puts "-------------------------------------"
 end
