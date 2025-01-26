@@ -1,6 +1,5 @@
 require 'digest'
 require 'zlib'
-require 'parallel'
 
 def brute_force_token(email, unix_time, actual_token)
   chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
@@ -26,8 +25,8 @@ def brute_force_token(email, unix_time, actual_token)
   # أطوال التوكن الممكنة
   token_lengths = [20, 24, 32]
   
-  # استخدام Parallel لتسريع البحث
-  result = Parallel.map(hash_functions, in_threads: 4) do |hash_func|
+  # البحث بدون Parallel
+  hash_functions.each do |hash_func|
     operations.each do |op|
       shifts.each do |shift|
         modulos.each do |mod|
@@ -58,10 +57,9 @@ def brute_force_token(email, unix_time, actual_token)
         end
       end
     end
-    nil
-  end.compact.first
+  end
   
-  result
+  nil
 end
 
 # بيانات الاختبار
